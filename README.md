@@ -13,7 +13,7 @@ XCare AI is an intelligent virtual assistant built on advanced generative AI tec
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/xcare-ai.git
+git clone https://github.com/universescreatorsarm/xcare-ai.git
 cd xcare-ai
 ```
 
