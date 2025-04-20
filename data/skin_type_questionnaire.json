@@ -1,0 +1,75 @@
+[
+  {
+    "id": 1,
+    "question": "Do you know your skin type: dry, oily, combination, or sensitive?",
+    "type": "initial",
+    "options": [
+      "dry",
+      "oily",
+      "combination",
+      "sensitive",
+      "not sure"
+    ],
+    "mapping": {
+      "dry": "dry",
+      "oily": "oily",
+      "combination": "combination",
+      "sensitive": "sensitive",
+      "not sure": null
+    }
+  },
+  {
+    "id": 2,
+    "question": "Does your T-zone (forehead, nose and chin) get oily faster than your cheeks?",
+    "type": "followup",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "mapping": {
+      "yes": "oily",
+      "no": "combination"
+    }
+  },
+  {
+    "id": 3,
+    "question": "After washing, does your skin feel tight or flaky within 30 minutes?",
+    "type": "followup",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "mapping": {
+      "yes": "dry",
+      "no": null
+    }
+  },
+  {
+    "id": 4,
+    "question": "Do you often experience redness, itching or stinging when trying new products?",
+    "type": "followup",
+    "options": [
+      "yes",
+      "no"
+    ],
+    "mapping": {
+      "yes": "sensitive",
+      "no": null
+    }
+  },
+  {
+    "id": 5,
+    "question": "How would you describe your skin’s overall oiliness throughout the day?",
+    "type": "followup",
+    "options": [
+      "never oily",
+      "sometimes oily",
+      "always oily"
+    ],
+    "mapping": {
+      "never oily": "dry",
+      "sometimes oily": "combination",
+      "always oily": "oily"
+    }
+  }
+]

@@ -1,0 +1,824 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script>
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XCare AI - Ваш персональный консультант по уходу за кожей</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #343541;
+            --container-bg: #ffffff;
+            --border-color: #e5e5e5;
+            --user-message-bg: #ffffff;
+            --bot-message-bg: #f7f7f8;
+            --button-bg: #10a37f;
+            --button-hover: #0d8c6d;
+            --upload-btn-bg: #10a37f;
+            --upload-btn-hover: #0d8c6d;
+            --cancel-btn-bg: #ef4444;
+            --cancel-btn-hover: #dc2626;
+            --sidebar-bg: #ffffff;
+            --sidebar-border: #e5e5e5;
+            --input-bg: #ffffff;
+            --input-border: #e5e5e5;
+            --input-focus: #10a37f;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #343541;
+            --text-color: #ffffff;
+            --container-bg: #343541;
+            --border-color: #4b4b4b;
+            --user-message-bg: #343541;
+            --bot-message-bg: #444654;
+            --button-bg: #10a37f;
+            --button-hover: #0d8c6d;
+            --upload-btn-bg: #10a37f;
+            --upload-btn-hover: #0d8c6d;
+            --cancel-btn-bg: #ef4444;
+            --cancel-btn-hover: #dc2626;
+            --sidebar-bg: #202123;
+            --sidebar-border: #4b4b4b;
+            --input-bg: #40414f;
+            --input-border: #4b4b4b;
+            --input-focus: #10a37f;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100%;
+            display: flex;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            border-left: 1px solid var(--sidebar-border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header img {
+            max-width: 150px;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            margin: 0;
+        }
+
+        .settings-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--container-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .settings-section h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .theme-toggle, .language-toggle {
+            padding: 8px 16px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            text-align: left;
+            transition: background-color 0.3s;
+        }
+
+        .theme-toggle:hover, .language-toggle:hover {
+            background-color: var(--button-hover);
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            flex: 1;
+            background-color: var(--bg-color);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+            margin: 0;
+            transition: border-color 0.3s;
+            scroll-behavior: smooth;
+            position: relative;
+        }
+
+        .message {
+            padding: 20px;
+            margin: 0;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.3s;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .message .section-header {
+            color: var(--button-bg);
+            font-size: 1.2em;
+            margin: 12px 0 6px 0;
+            font-weight: 600;
+        }
+
+        .message .subsection-header {
+            color: var(--text-color);
+            font-size: 1.1em;
+            margin: 8px 0 4px 0;
+            font-weight: 500;
+        }
+
+        .message .skincare-paragraph {
+            margin: 2px 0;
+            line-height: 1.3;
+        }
+
+        .message .skincare-list {
+            margin: 2px 0;
+            padding-left: 20px;
+        }
+
+        .message .skincare-list li {
+            margin: 2px 0;
+            line-height: 1.3;
+        }
+
+        /* Выделение важных компонентов */
+        .message .ingredient {
+            color: #e67e22;  /* Оранжевый для ингредиентов */
+            font-weight: 500;
+        }
+
+        .message .product-name {
+            color: #2980b9;  /* Синий для названий продуктов */
+            font-weight: 500;
+        }
+
+        .message .concentration {
+            color: #27ae60;  /* Зеленый для концентраций */
+            font-weight: 500;
+        }
+
+        .message .warning {
+            color: #c0392b;  /* Красный для предупреждений */
+            font-weight: 500;
+        }
+
+        .message .benefit {
+            color: #8e44ad;  /* Фиолетовый для преимуществ */
+            font-weight: 500;
+        }
+
+        [data-theme="dark"] .message .ingredient {
+            color: #f39c12;
+        }
+
+        [data-theme="dark"] .message .product-name {
+            color: #3498db;
+        }
+
+        [data-theme="dark"] .message .concentration {
+            color: #2ecc71;
+        }
+
+        [data-theme="dark"] .message .warning {
+            color: #e74c3c;
+        }
+
+        [data-theme="dark"] .message .benefit {
+            color: #9b59b6;
+        }
+
+        .message img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-top: 5px;
+            align-self: flex-start;
+        }
+
+        .user-message {
+            background-color: var(--user-message-bg);
+        }
+
+        .bot-message {
+            background-color: var(--bot-message-bg);
+        }
+
+        .image-preview {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background-color: var(--container-bg);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+        
+        .image-preview img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 6px;
+            object-fit: contain;
+        }
+        
+        .image-preview button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: white;
+            transition: background-color 0.3s;
+            min-width: 80px;
+            z-index: 1001;
+        }
+        
+        .remove-btn {
+            background-color: var(--cancel-btn-bg);
+        }
+        
+        .remove-btn:hover {
+            background-color: var(--cancel-btn-hover);
+        }
+        
+        .send-btn {
+            background-color: var(--upload-btn-bg);
+        }
+        
+        .send-btn:hover {
+            background-color: var(--upload-btn-hover);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background-color: var(--container-bg);
+            border-top: 1px solid var(--border-color);
+            position: relative;
+            z-index: 1;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--input-border);
+            border-radius: 6px;
+            font-size: 16px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            transition: border-color 0.3s, background-color 0.3s, color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--input-focus);
+        }
+
+        button {
+            padding: 12px 24px;
+            background-color: var(--button-bg);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            white-space: nowrap;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--button-hover);
+        }
+
+        .upload-container {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background-color: var(--container-bg);
+            border-top: 1px solid var(--border-color);
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-btn {
+            background-color: var(--upload-btn-bg);
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .upload-btn:hover {
+            background-color: var(--upload-btn-hover);
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid var(--sidebar-border);
+            }
+            
+            .image-preview {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="content">
+            <div class="header">
+                <img id="logo" src="/static/logo white.png" alt="XCare AI Logo">
+                <h1 id="title">XCare AI - Ваш персональный консультант по уходу за кожей</h1>
+            </div>
+            
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message bot-message" id="welcome-message">
+                        Здравствуйте! Я XCare AI, ваш персональный консультант по уходу за кожей. 
+                        Как я могу помочь вам сегодня?
+                    </div>
+                </div>
+                
+                <div class="input-container">
+                    <input type="text" id="user-input" placeholder="Введите ваш вопрос...">
+                    <button id="send-button">Отправить</button>
+                </div>
+            </div>
+            
+            <div class="upload-container">
+                <input type="file" id="image-upload" accept="image/*" style="display: none;">
+                <button class="upload-btn" id="upload-button">
+                    Загрузить фото для анализа
+                </button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="settings-section">
+                <h2 id="settings-title">Настройки</h2>
+                <div class="settings-group">
+                    <button class="theme-toggle" id="theme-button">Темная тема</button>
+                    <button class="language-toggle" id="language-button">English</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            console.log('Script initialized');
+
+            let sessionId = sessionStorage.getItem('sessionId') || crypto.randomUUID();
+            sessionStorage.setItem('sessionId', sessionId);
+
+            let imagePreview = null;
+            let currentLanguage = localStorage.getItem('language') || 'ru';
+            let isDarkTheme = localStorage.getItem('theme') === 'dark';
+
+            const baseUrl = window.location.origin;
+            const logo = document.getElementById('logo');
+            const title = document.getElementById('title');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const uploadButton = document.getElementById('upload-button');
+            const languageButton = document.getElementById('language-button');
+            const themeButton = document.getElementById('theme-button');
+            const settingsTitle = document.getElementById('settings-title');
+            const welcomeMessage = document.getElementById('welcome-message');
+            const chatMessages = document.getElementById('chat-messages');
+
+            function escapeHTML(str) {
+                return str.replace(/[&<>"']/g, function(match) {
+                    return {
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;'
+                    }[match];
+                });
+            }
+
+            function appendMessage(content, isUser) {
+                const chatMessages = document.getElementById('chat-messages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+                
+                // Проверяем наличие HTML-тегов в контенте
+                const hasHtml = /<\/?[a-z][\s\S]*>/i.test(content);
+                if (hasHtml) {
+                    messageDiv.innerHTML = content;
+                } else {
+                    messageDiv.textContent = content;
+                }
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            function showImagePreview(file) {
+                console.log('showImagePreview called');
+                if (imagePreview) {
+                    imagePreview.remove();
+                    imagePreview = null;
+                }
+
+                if (file.size > 4 * 1024 * 1024) {
+                    appendMessage('bot', currentLanguage === 'ru' ? 
+                        'Извините, размер файла не должен превышать 4MB' : 
+                        'Sorry, file size should not exceed 4MB');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    console.log('Image preview created');
+                    imagePreview = document.createElement('div');
+                    imagePreview.className = 'image-preview';
+                    imagePreview.innerHTML = `
+                        <img src="${e.target.result}" alt="Preview">
+                        <button class="remove-btn">×</button>
+                        <button class="send-btn">Отправить</button>
+                    `;
+                    const uploadContainer = document.querySelector('.upload-container');
+                    uploadContainer.appendChild(imagePreview);
+
+                    // Добавляем обработчики событий для кнопок
+                    imagePreview.querySelector('.remove-btn').addEventListener('click', removeImagePreview);
+                    imagePreview.querySelector('.send-btn').addEventListener('click', sendImageMessage);
+
+                    console.log('Image preview appended to upload-container');
+                };
+                reader.onerror = function() {
+                    console.error('Error reading file');
+                    appendMessage('bot', currentLanguage === 'ru' ? 
+                        'Ошибка при чтении файла' : 
+                        'Error reading file');
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function removeImagePreview() {
+                console.log('removeImagePreview called');
+                if (imagePreview) {
+                    imagePreview.remove();
+                    imagePreview = null;
+                }
+                document.getElementById('image-upload').value = '';
+            }
+
+            function storeMessage(role, message) {
+                console.log(`Storing message: ${role}`);
+                let history = JSON.parse(sessionStorage.getItem('chatHistory') || '[]');
+                history.push({ role, message });
+                
+                if (history.length > 100) {
+                    history = history.slice(-100);
+                }
+                
+                try {
+                    sessionStorage.setItem('chatHistory', JSON.stringify(history));
+                } catch (e) {
+                    console.error('Error storing chat history:', e);
+                    sessionStorage.removeItem('chatHistory');
+                }
+            }
+
+            function restoreHistory() {
+                console.log('restoreHistory called');
+                try {
+                    const history = JSON.parse(sessionStorage.getItem('chatHistory') || '[]');
+                    if (!Array.isArray(history)) {
+                        throw new Error('Invalid chat history format');
+                    }
+                    
+                    while (chatMessages.children.length > 1) {
+                        chatMessages.removeChild(chatMessages.lastChild);
+                    }
+                    
+                    for (const msg of history) {
+                        if (msg.role && msg.message) {
+                            appendMessage(msg.message, msg.role === 'user');
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error restoring chat history:', e);
+                    sessionStorage.removeItem('chatHistory');
+                }
+            }
+
+            function sendImageMessage() {
+                console.log('sendImageMessage called');
+                const file = document.getElementById('image-upload').files[0];
+                if (!file) {
+                    appendMessage('bot', currentLanguage === 'ru' ? 
+                        'Пожалуйста, выберите изображение' : 
+                        'Please select an image');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onerror = function() {
+                    console.error('Error reading file');
+                    appendMessage('bot', currentLanguage === 'ru' ? 
+                        'Ошибка при чтении файла' : 
+                        'Error reading file');
+                };
+                reader.onload = function(e) {
+                    try {
+                        const imageData = e.target.result.split(',')[1];
+                        appendMessage('user', `<img src="${e.target.result}" alt="Uploaded" style="max-width: 200px; border-radius: 5px;">`);
+                        sendRequest('', imageData);
+                        removeImagePreview();
+                    } catch (error) {
+                        console.error('Error processing image:', error);
+                        appendMessage('bot', currentLanguage === 'ru' ? 
+                            'Ошибка при обработке изображения' : 
+                            'Error processing image');
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function sendMessage() {
+                console.log(`sendMessage called`);
+                const message = userInput.value.trim();
+                if (!message) return;
+                appendMessage(message, true);
+                sendRequest(message, null);
+                userInput.value = '';
+            }
+
+            async function sendRequest(message, imageData) {
+                console.log('sendRequest called', { message, hasImage: !!imageData });
+                try {
+                    const requestData = {
+                        message: message || '',
+                        session_id: sessionId
+                    };
+                    if (imageData) {
+                        requestData.image_data = imageData;
+                    }
+
+                    console.log('Sending fetch request to:', `${baseUrl}/chat`);
+                    const res = await fetch(`${baseUrl}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    console.log(`Fetch response status: ${res.status}`);
+                    let responseData;
+                    const contentType = res.headers.get('content-type');
+                    
+                    if (contentType && contentType.includes('application/json')) {
+                        responseData = await res.json();
+                        if (!res.ok) {
+                            throw new Error(responseData.detail || `Ошибка ${res.status}`);
+                        }
+                    } else {
+                        const text = await res.text();
+                        throw new Error(`Unexpected response: ${text}`);
+                    }
+
+                    if (responseData.response) {
+                        appendMessage(responseData.response, false);
+                        storeMessage('user', message || '<img>');
+                        storeMessage('bot', responseData.response);
+                    } else {
+                        throw new Error('No response data received');
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    appendMessage('bot', currentLanguage === 'ru' ? 
+                        `Извините, произошла ошибка: ${error.message}` : 
+                        `Sorry, an error occurred: ${error.message}`);
+                }
+            }
+
+            // Добавляем обработчики событий
+            sendButton.addEventListener('click', sendMessage);
+            userInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
+            });
+
+            uploadButton.addEventListener('click', () => {
+                console.log('uploadButton clicked');
+                document.getElementById('image-upload').click();
+            });
+
+            document.getElementById('image-upload').addEventListener('change', function() {
+                console.log('image-upload change event');
+                if (this.files && this.files[0]) {
+                    showImagePreview(this.files[0]);
+                }
+            });
+
+            themeButton.addEventListener('click', toggleTheme);
+            languageButton.addEventListener('click', toggleLanguage);
+
+            const translations = {
+                ru: {
+                    title: 'XCare AI - Ваш персональный консультант по уходу за кожей',
+                    welcome: 'Здравствуйте! Я XCare AI, ваш персональный консультант по уходу за кожей. Как я могу помочь вам сегодня?',
+                    placeholder: 'Введите ваш вопрос...',
+                    send: 'Отправить',
+                    upload: 'Загрузить фото для анализа',
+                    theme: 'Темная тема',
+                    language: 'English',
+                    lightTheme: 'Светлая тема',
+                    darkTheme: 'Темная тема',
+                    settings: 'Настройки'
+                },
+                en: {
+                    title: 'XCare AI - Your Personal Skincare Consultant',
+                    welcome: 'Hello! I\'m XCare AI, your personal skincare consultant. How can I help you today?',
+                    placeholder: 'Type your question...',
+                    send: 'Send',
+                    upload: 'Upload photo for analysis',
+                    theme: 'Dark theme',
+                    language: 'Русский',
+                    lightTheme: 'Light theme',
+                    darkTheme: 'Dark theme',
+                    settings: 'Settings'
+                }
+            };
+
+            function initializeSettings() {
+                console.log('initializeSettings called');
+                document.documentElement.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
+                if (logo) {
+                    logo.src = isDarkTheme ? '/static/logo dark.png' : '/static/logo white.png';
+                }
+                document.documentElement.lang = currentLanguage;
+                updateTexts();
+            }
+
+            function updateTexts() {
+                console.log('updateTexts called');
+                if (title) title.textContent = translations[currentLanguage].title;
+                if (welcomeMessage) welcomeMessage.textContent = translations[currentLanguage].welcome;
+                if (userInput) userInput.placeholder = translations[currentLanguage].placeholder;
+                if (sendButton) sendButton.textContent = translations[currentLanguage].send;
+                if (uploadButton) uploadButton.textContent = translations[currentLanguage].upload;
+                if (languageButton) languageButton.textContent = translations[currentLanguage].language;
+                if (themeButton) themeButton.textContent = isDarkTheme ? 
+                    translations[currentLanguage].lightTheme : 
+                    translations[currentLanguage].darkTheme;
+                if (settingsTitle) settingsTitle.textContent = translations[currentLanguage].settings;
+            }
+
+            function toggleTheme() {
+                console.log('toggleTheme called');
+                isDarkTheme = !isDarkTheme;
+                localStorage.setItem('theme', isDarkTheme ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
+                if (logo) {
+                    logo.src = isDarkTheme ? '/static/logo dark.png' : '/static/logo white.png';
+                }
+                updateTexts();
+            }
+
+            function toggleLanguage() {
+                console.log('toggleLanguage called');
+                currentLanguage = currentLanguage === 'ru' ? 'en' : 'ru';
+                localStorage.setItem('language', currentLanguage);
+                document.documentElement.lang = currentLanguage;
+                updateTexts();
+            }
+
+            // Инициализация
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOMContentLoaded event');
+                initializeSettings();
+                restoreHistory();
+            });
+        })();
+    </script>
+</body>
+</html>
+```
